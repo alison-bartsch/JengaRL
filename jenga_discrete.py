@@ -13,7 +13,10 @@ class JengaEnv(gym.Env):
 		# Define action space - discrete action that can take on 51 values (id's of the jenga blocks)
 		# the top three blocks should never be moved
 		self.action_space = gym.spaces.Discrete(51) 
-		self.observation_space = np.ones(51)
+		# self.observation_space = np.ones(51)
+
+		# the observation space is an array of length 51, where each element can either be 0 or 1 
+		self.observation_space = gym.spaces.MultiBinary(51)
 
 		# Define the state - cannot randomly initialize, because Jenga blocks are ordered
 		# self.state=np.array(range(54))
