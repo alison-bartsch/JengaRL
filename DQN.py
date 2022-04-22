@@ -151,7 +151,6 @@ def optimize_model():
 
 num_episodes = 500
 num_blocks = [] # keeps track of the number of blocks removed
-blocks_running_avg = []
 for i_episode in range(num_episodes):
     # Initialize the environment and state
     state = env.reset()
@@ -188,24 +187,29 @@ for i_episode in range(num_episodes):
             print(" ------------ Episode: {}, num blocks removed: {}".format(i_episode, blocks_removed))
             break
 
-    # get a running average of the number of blocks removed every 50 episodes
-    if i_episode % 50 == 0:
-        avg = np.sum(num_blocks[(i_episode - 50):i_episode]) / len(num_blocks[(i_episode - 50):i_episode])
-        blocks_running_avg.append(avg) 
-
-
     # Update the target network, copying all weights and biases in DQN
     if i_episode % TARGET_UPDATE == 0:
         target_net.load_state_dict(policy_net.state_dict())
 
 
+# calculate the moving average with a window of 50 episodes
+window_size = 50
+i = 0
+moving_averages = []
+while i < len(num_blocks) - window_size + 1:
+    this_window = num_blocks[i : i + window_size]
+
+    window_average = sum(this_window) / window_size
+    moving_averages.append(window_average)
+    i += 1
+
 # plot time duration
 plt.figure()
 plt.plot(np.arange(len(num_blocks)), num_blocks)
-plt.plot(np.arange(len(blocks_running_avg)), blocks_running_avg)
+plt.plot(np.arange(len(moving_averages)), moving_averages)
 plt.xlabel("Episode")
 plt.ylabel("Number of blocks removed from tower")
-plt.legend(["After Each Episode", "Running Average Over 50 Episodes"])
+plt.legend(["After Each Episode", "Moving Average Over 50 Episodes"])
 plt.show()
 
 

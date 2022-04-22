@@ -38,9 +38,11 @@ class JengaEnv(gym.Env):
 	def step(self, sampleID):
 		# pennalty for trying to remove a block that has already been removed!
 		if self.state[sampleID] == 0:
-			reward = -5
+			reward = -50
+			print("\nTried to remove block again!")
 		else:
 			pb.removeBody(self.jengaObject[sampleID]) #delete selected block
+			print("Jenga Object Length: ", len(self.jengaObject))
 
 			self.state[sampleID] = 0 #update state to describe remaining blocks
 			# print("State Shape: ", self.state.shape)
@@ -63,7 +65,7 @@ class JengaEnv(gym.Env):
 
 		print("\nAction: ", sampleID)
 		print("Reward: ", reward)
-		print("Num Removed: ", 54 - num_blocks)
+		print("Num Removed: ", 54 - (3+ np.sum(self.state)))
 		return outputs
 
 
