@@ -149,8 +149,9 @@ def optimize_model():
 
 
 
-num_episodes = 100
+num_episodes = 500
 num_blocks = [] # keeps track of the number of blocks removed
+blocks_running_avg = []
 for i_episode in range(num_episodes):
     # Initialize the environment and state
     state = env.reset()
@@ -162,8 +163,8 @@ for i_episode in range(num_episodes):
         new_state, reward, done, _ = env.step(action.item())
         reward = torch.tensor([reward])
 
-        print("Action: ", action.item())
-        print("Reward: ", reward.item())
+        # print("Action: ", action.item())
+        # print("Reward: ", reward.item())
 
         # # Observe new state
         if not done:
@@ -184,8 +185,14 @@ for i_episode in range(num_episodes):
         if done:
             # print(state)
             num_blocks.append(blocks_removed)
-            print("Episode: {}, num blocks removed: {}".format(i_episode, blocks_removed))
+            print(" ------------ Episode: {}, num blocks removed: {}".format(i_episode, blocks_removed))
             break
+
+    # get a running average of the number of blocks removed every 50 episodes
+    if i_episode % 50 == 0:
+        avg = np.sum(num_blocks[(i_episode - 50):i_episode]) / len(num_blocks[(i_episode - 50):i_episode])
+        blocks_running_avg.append(avg) 
+
 
     # Update the target network, copying all weights and biases in DQN
     if i_episode % TARGET_UPDATE == 0:
@@ -195,6 +202,10 @@ for i_episode in range(num_episodes):
 # plot time duration
 plt.figure()
 plt.plot(np.arange(len(num_blocks)), num_blocks)
+plt.plot(np.arange(len(blocks_running_avg)), blocks_running_avg)
+plt.xlabel("Episode")
+plt.ylabel("Number of blocks removed from tower")
+plt.legend(["After Each Episode", "Running Average Over 50 Episodes"])
 plt.show()
 
 

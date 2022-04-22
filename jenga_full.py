@@ -12,14 +12,14 @@ class JengaEnv(gym.Env):
 	def __init__(self):
 		# Define action space - discrete action that can take on 51 values (id's of the jenga blocks)
 		# the top three blocks should never be moved
-		self.action_space = gym.spaces.Discrete(51) # 54
+		self.action_space = gym.spaces.Discrete(54) 
 		# self.observation_space = np.ones(51)
 
-		# the observation space is an array of length 51, where each element can either be 0 or 1 
-		self.observation_space = gym.spaces.MultiBinary(51) # 54
+		# the observation space is an adjacency matrix of dimension (54,54)
+		self.observation_space = gym.spaces.MultiBinary((54,54)) 
 
-		# Define the state - cannot randomly initialize, because Jenga blocks are ordered
-		# self.state=np.array(range(54))
+		# Define the state - an adjacency matrix
+
 		self.state = np.ones(51) 
 
 		self.physicsClient = pb.connect(pb.DIRECT)
@@ -41,6 +41,8 @@ class JengaEnv(gym.Env):
 		self.state[sampleID] = 0 #update state to describe remaining blocks
 		# print("State Shape: ", self.state.shape)
 
+		# place block on tower (call helper function to do so)
+
 		num_blocks = 3+ np.sum(self.state)
 		for _ in range(300): 
 			pb.stepSimulation()
@@ -56,6 +58,11 @@ class JengaEnv(gym.Env):
 			reward = -100
 			self.done = True
 		outputs = [self.state, reward, self.done, dict()]
+
+		print("\nAction: ", sampleID)
+		print("Reward: ", reward)
+		print("Num Removed: ", 54 - num_blocks)
+
 		return outputs
 
 
@@ -96,6 +103,11 @@ class JengaEnv(gym.Env):
 		self.state = np.ones(51) 
 
 		return self.state
+
+	# helper functions
+	def _initialize_adjacency_matrix(self, num_blocks):
+		state = np.zeros((num_blocks, num_blocks))
+
 
 
 # # test code - see what is going on

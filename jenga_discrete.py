@@ -36,17 +36,21 @@ class JengaEnv(gym.Env):
 		self.reset()
 
 	def step(self, sampleID):
-		pb.removeBody(self.jengaObject[sampleID]) #delete selected block
+		# pennalty for trying to remove a block that has already been removed!
+		if self.state[sampleID] == 0:
+			reward = -5
+		else:
+			pb.removeBody(self.jengaObject[sampleID]) #delete selected block
 
-		self.state[sampleID] = 0 #update state to describe remaining blocks
-		# print("State Shape: ", self.state.shape)
+			self.state[sampleID] = 0 #update state to describe remaining blocks
+			# print("State Shape: ", self.state.shape)
 
-		num_blocks = 3+ np.sum(self.state)
+			num_blocks = 3+ np.sum(self.state)
+			# reward = 54 - num_blocks #increase reward for more blocks removed from tower
+			reward = (54 - num_blocks)**2
+
 		for _ in range(300): 
 			pb.stepSimulation()
-
-		# reward = 54 - num_blocks #increase reward for more blocks removed from tower
-		reward = (54 - num_blocks)**2
 
 		# due to the top 3 blocks never moved, we can use them to indicate the fall or not
 		pos, ang = pb.getBasePositionAndOrientation(self.jengaObject[-1], self.physicsClient)
@@ -56,6 +60,10 @@ class JengaEnv(gym.Env):
 			reward = -100
 			self.done = True
 		outputs = [self.state, reward, self.done, dict()]
+
+		print("\nAction: ", sampleID)
+		print("Reward: ", reward)
+		print("Num Removed: ", 54 - num_blocks)
 		return outputs
 
 
