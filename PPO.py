@@ -10,7 +10,7 @@ env = JengaEnv()
 model = PPO("MlpPolicy", env, verbose=1)
 
 print("Beginning training...")
-model.learn(total_timesteps=25000)
+model.learn(total_timesteps=250)
 print("Ended training...")
 model.save("ppo_jenga")
 
