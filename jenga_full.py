@@ -10,7 +10,7 @@ import pybullet_data
 class JengaFullEnv(gym.Env):
 	metadata = {'render.modes': ['human']}
 
-	def __init__(self):
+	def __init__(self, visualize=False):
 		# Define action space - discrete action that can take on 54 values (id's of the jenga blocks)
 		self.action_space = gym.spaces.Discrete(54) 
 
@@ -29,8 +29,10 @@ class JengaFullEnv(gym.Env):
 		# number of blocks removed counter
 		self.num_removed = 0
 
-		# self.physicsClient = pb.connect(pb.DIRECT)
-		self.physicsClient = pb.connect(pb.GUI)
+		if visualize == True:
+			self.physicsClient = pb.connect(pb.GUI)
+		else:
+			self.physicsClient = pb.connect(pb.DIRECT)
 
 		pb.setTimeStep(1/60, self.physicsClient) # it's vital for stablity
 		self.rendered_img = None
@@ -164,6 +166,9 @@ class JengaFullEnv(gym.Env):
 		self.second_layer_ids = [48, 49, 50]
 
 		return self.state
+
+	def visualize(self):
+		self.physicsClient = pb.connect(pb.GUI)
 
 	# helper functions
 	def _initialize_adjacency_matrix(self, num_blocks):

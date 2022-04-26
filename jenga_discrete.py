@@ -9,7 +9,7 @@ import pybullet_data
 class JengaEnv(gym.Env):
 	metadata = {'render.modes': ['human']}
 
-	def __init__(self):
+	def __init__(self, visualize=False):
 		# Define action space - discrete action that can take on 51 values (id's of the jenga blocks)
 		# the top three blocks should never be moved
 		self.action_space = gym.spaces.Discrete(51) # 54
@@ -22,8 +22,11 @@ class JengaEnv(gym.Env):
 		# self.state=np.array(range(54))
 		self.state = np.ones(51) 
 
-		self.physicsClient = pb.connect(pb.DIRECT)
-		# self.physicsClient = pb.connect(pb.GUI)
+		if visualize == True:
+			self.physicsClient = pb.connect(pb.GUI)
+		else:
+			self.physicsClient = pb.connect(pb.DIRECT)
+		
 		pb.setTimeStep(1/60, self.physicsClient) # it's vital for stablity
 
 		self.rendered_img = None
@@ -42,14 +45,20 @@ class JengaEnv(gym.Env):
 			print("\nTried to remove block again!")
 		else:
 			pb.removeBody(self.jengaObject[sampleID]) #delete selected block
-			print("Jenga Object Length: ", len(self.jengaObject))
 
-			self.state[sampleID] = 0 #update state to describe remaining blocks
-			# print("State Shape: ", self.state.shape)
+			self.state[sampleID] = 0 
 
 			num_blocks = 3+ np.sum(self.state)
-			# reward = 54 - num_blocks #increase reward for more blocks removed from tower
-			reward = (54 - num_blocks)**2
+
+			# reward = (54 - num_blocks)**2
+
+			# special reward that has an additional term to encourage removing the higher up blocks first
+			# reward = (54 - num_blocks)**2 + 0.25*sampleID		
+
+			# special reward that encourages only 1 block from each row to be removed
+			reward = (54 - num_blocks)**2 + self._avgBlocksInRow()
+
+			# get the average sum of each 3 elements in self.state 
 
 		for _ in range(300): 
 			pb.stepSimulation()
@@ -106,6 +115,17 @@ class JengaEnv(gym.Env):
 		self.state = np.ones(51) 
 
 		return self.state
+
+	def visualize(self):
+		self.physicsClient = pb.connect(pb.GUI)
+
+	# helper function
+	def _avgBlocksInRow(self):
+		sums = []
+		for i in range(int(len(self.state)/3)):
+			sums.append(self.state[3*i] + self.state[3*i+1] + self.state[3*i+2])
+		return np.mean(sums)
+
 
 
 # # test code - see what is going on
