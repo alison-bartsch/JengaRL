@@ -7,7 +7,7 @@ import time
 import pybullet_data
 
 # Discrete Case:
-class JengaEnv(gym.Env):
+class JengaFullEnv(gym.Env):
 	metadata = {'render.modes': ['human']}
 
 	def __init__(self):
@@ -275,7 +275,7 @@ class JengaEnv(gym.Env):
 
 # create a stable tower
 # it's not a easy way!
-env = JengaEnv()
+env = JengaFullEnv()
 done = False
 for i in range(300):
 	# print("Stepping the simulation")
