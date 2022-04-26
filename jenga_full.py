@@ -41,7 +41,6 @@ class JengaEnv(gym.Env):
 		self.reset()
 
 	def step(self, sampleID):
-		# top_layer_ids, top_layer_size = _top_layer(self.jengaObject)
 
 		# check if sampleID is in the top layer of the tower -- due to Jenga rules, you can't remove the top layer!
 		if sampleID in self.top_layer_ids:
@@ -50,12 +49,11 @@ class JengaEnv(gym.Env):
 
 		else:
 			# remove block from tower
-			print("Sampel ID: ", sampleID)
+			print("\nSampel ID: ", sampleID)
 			print("Int of Jenga Object: ", int(self.jengaObject[sampleID]))
+			print("Jenga Object: ", self.jengaObject[sampleID])
 			pb.removeBody(int(self.jengaObject[sampleID])) #delete selected block
 			self.jengaObject[sampleID] = 0
-			# print("Jenga Object Length: ", len(self.jengaObject))
-			# NOTE: may need to change the jengaObject to an array to maintain order as the blocks are stacked back onto the top
 
 			# update the adjacency matrix after removing block from tower
 			self.state = self._remove_block_adjacency(54, sampleID, self.state) #update state to describe remaining blocks
@@ -65,9 +63,12 @@ class JengaEnv(gym.Env):
 				self.tower_layer+=1
 				self.second_layer_ids = self.top_layer_ids
 				self.top_layer_ids = [sampleID]
-				# self.top_layer_size = 1
 			else:
 				self.top_layer_ids.append(sampleID)
+
+			print("Tower Layer: ", self.tower_layer)
+			print("Top Layer ID's: ", self.top_layer_ids)
+			print("Second Layer ID's: ", self.second_layer_ids)
 
 			# intitialize spawning elements
 			orientation = []
@@ -76,26 +77,26 @@ class JengaEnv(gym.Env):
 			# if there are no blocks add block to center
 			if self.top_layer_size == 3:
 				print("3 blocks here!")
-				position = [0,0,0+0.3*(self.tower_layer+1)-0.15]
+				position = [0,0,0+0.3*(self.tower_layer+1)-0.2]
 
 			# if there are 2 blocks, add block to one side
 			elif self.top_layer_size == 2:
 				print("2 blocks here!")
-				posiiton = [0,-(0.5),0+0.3*(self.tower_layer+1)-0.15]
+				position = [-(0.5),0,0+0.3*(self.tower_layer+1)-0.2]
 
 			# if there is 1 block, add block to one side
 			elif self.top_layer_size == 1:
 				print("1 block here!")
-				position = [0,(0.5),0+0.3*(self.tower_layer+1)-0.15]
+				position = [(0.5),0,0+0.3*(self.tower_layer+1)-0.2]
 
 			if self.tower_layer % 2 == 1:
+				print("odd tower layer")
 				self.jengaObject[sampleID] = pb.loadURDF('jenga/jenga.urdf', basePosition=position, useFixedBase=False,flags = pb.URDF_USE_SELF_COLLISION)
-				# self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=position, useFixedBase=False,flags = pb.URDF_USE_SELF_COLLISION))
 			else:
+				print("even tower layer")
 				orientation = [0,0,0.7071,0.7071]
 				self.jengaObject[sampleID] = pb.loadURDF('jenga/jenga.urdf', basePosition=position, baseOrientation=orientation,useFixedBase=False,flags = pb.URDF_USE_SELF_COLLISION)
-				# self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=position, baseOrientation=orientation,useFixedBase=False,flags = pb.URDF_USE_SELF_COLLISION))
-
+		
 			# update the size of the top layer
 			self.top_layer_size+=1
 			if self.top_layer_size > 3:
@@ -105,8 +106,6 @@ class JengaEnv(gym.Env):
 			self.state = self._update_block_adjacency(sampleID, self.state, self.top_layer_ids, self.second_layer_ids, self.top_layer_size)
 
 			self.num_removed+=1
-
-			# num_blocks = 3 + # np.sum(self.state)
 			reward = (self.num_removed)**2
 
 		for _ in range(300): 
@@ -122,7 +121,7 @@ class JengaEnv(gym.Env):
 			self.done = True
 		outputs = [self.state, reward, self.done, dict()]
 
-		print("\nAction: ", sampleID)
+		print("Action: ", sampleID)
 		print("Reward: ", reward)
 		print("Num Removed: ", self.num_removed)
 		return outputs
@@ -135,11 +134,7 @@ class JengaEnv(gym.Env):
 		planeId = pb.loadURDF('plane.urdf')
 
 		self.done = False
-		# jengaId = pb.loadURDF('jenga/jenga.urdf', basePosition=[0,-0.05,0+.025*(1)])
-		# block_measure = tuple(map(lambda i, j: i - j, pb.getAABB(jengaId)[1], pb.getAABB(jengaId)[0]))
-		# print("Block Measure: ", block_measure)
 
-		
 		self.jengaObject = np.zeros(54)
 		fix_flag = False
 		for layer in range(18):
@@ -148,34 +143,16 @@ class JengaEnv(gym.Env):
 				self.jengaObject[layer + 1] = pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15],baseOrientation=[0,0,0.7071,0.7071],useFixedBase= True,flags = pb.URDF_USE_SELF_COLLISION)
 				self.jengaObject[layer + 2] = pb.loadURDF('jenga/jenga.urdf', basePosition=[(0.5),0,0+0.3*(layer+1)-0.15],baseOrientation=[0,0,0.7071,0.7071],useFixedBase= True,flags = pb.URDF_USE_SELF_COLLISION)
 			elif layer%2 == 1:
-				self.jengaObject[layer] = pb.loadURDF('jenga/jenga.urdf', basePosition=[0,-(0.5),0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
-				self.jengaObject[layer + 1] = pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
-				self.jengaObject[layer + 2] = pb.loadURDF('jenga/jenga.urdf', basePosition=[0,(0.5),0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
+				self.jengaObject[layer*3] = pb.loadURDF('jenga/jenga.urdf', basePosition=[0,-(0.5),0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
+				self.jengaObject[layer*3 + 1] = pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
+				self.jengaObject[layer*3 + 2] = pb.loadURDF('jenga/jenga.urdf', basePosition=[0,(0.5),0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
 			else:
-				self.jengaObject[layer] = pb.loadURDF('jenga/jenga.urdf', basePosition=[-(0.5),0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
-				self.jengaObject[layer + 1] = pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
-				self.jengaObject[layer + 2] = pb.loadURDF('jenga/jenga.urdf', basePosition=[(0.5),0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
+				self.jengaObject[layer*3] = pb.loadURDF('jenga/jenga.urdf', basePosition=[-(0.5),0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
+				self.jengaObject[layer*3 + 1] = pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
+				self.jengaObject[layer*3 + 2] = pb.loadURDF('jenga/jenga.urdf', basePosition=[(0.5),0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
 
-
-		# self.jengaObject=[]
-		# fix_flag = False
-		# for layer in range(18): 
-		# 	if layer == 0:
-		# 		self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[-(0.5),0,0+0.3*(layer+1)-0.15],baseOrientation=[0,0,0.7071,0.7071],useFixedBase= True,flags = pb.URDF_USE_SELF_COLLISION)) # , globalScaling=10.0))
-		# 		self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15],baseOrientation=[0,0,0.7071,0.7071],useFixedBase= True,flags = pb.URDF_USE_SELF_COLLISION)) # , globalScaling=10.0))
-		# 		self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[(0.5),0,0+0.3*(layer+1)-0.15],baseOrientation=[0,0,0.7071,0.7071],useFixedBase= True,flags = pb.URDF_USE_SELF_COLLISION)) # , globalScaling=10.0))
-		# 	elif layer%2 ==1:
-		# 		self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,-(0.5),0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)) # , globalScaling=10.0))
-		# 		self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)) # , globalScaling=10.0))
-		# 		self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,(0.5),0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)) # , globalScaling=10.0))
-		# 	else:
-		# 		self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[-(0.5),0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)) # , globalScaling=10.0))
-		# 		self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)) # , globalScaling=10.0))
-		# 		self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[(0.5),0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)) # , globalScaling=10.0))
-
-		# self.rewardBoard = pb.loadURDF("jenga/jenga.urdf", basePosition=[0,0,.03*(18)+0.05], globalScaling=3)
+		print("Jenga Object: ", self.jengaObject)
 		print("Created the Jenga Tower!")
-		# pos, ang = pb.getBasePositionAndOrientation(self.jengaObject[-1], self.physicsClient)
 
 		# reset the state array
 		self.state = self._initialize_adjacency_matrix(54)
@@ -257,13 +234,11 @@ class JengaEnv(gym.Env):
 				state[i+4, i+2] = 1
 				state[i+5, i+2] = 1
 
-		print(state)
 		return state
 
 	def _remove_block_adjacency(self, n_blocks, sampleID, state):
 		state[sampleID,:] = np.zeros(n_blocks)
 		state[:, sampleID] = np.zeros(n_blocks)
-
 		return state
 
 	def _update_block_adjacency(self, sampleID, state, top_layer_ids, second_layer_ids, top_layer_size):
@@ -294,18 +269,6 @@ class JengaEnv(gym.Env):
 
 		return state
 
-	# def _top_layer(self, jengaObject):
-	# 	# return the block id's in the top layer as well as the # of blocks in the top layer
-	# 	# return top_layer_ids, top_layer_size
-
-	# 	# get the 3 last elements of the JengaObject list
-	# 	# pos, ang = getBasePositionAndOrientation(jengaObject[idx], self.physicsClient) ---- compare pos[2] for each of them
-
-	# 	return top_layer_ids, top_layer_size
-
-
-
-
 
 
 # test code - see what is going on
@@ -324,7 +287,6 @@ for i in range(300):
 print("Now start to remove the  jenga.")
 while not done:
 	action = env.action_space.sample()
-	# print("Action: ", action)
 	state,rw,done,info = env.step(action)
 	# print(state)
 	# print("Reward: ", rw)
