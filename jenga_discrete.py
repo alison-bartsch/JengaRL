@@ -53,10 +53,10 @@ class JengaEnv(gym.Env):
 			# reward = (54 - num_blocks)**2
 
 			# special reward that has an additional term to encourage removing the higher up blocks first
-			# reward = (54 - num_blocks)**2 + 0.25*sampleID		
+			reward = (54 - num_blocks)**2 + 0.25*sampleID		
 
 			# special reward that encourages only 1 block from each row to be removed
-			reward = (54 - num_blocks)**2 + self._avgBlocksInRow()
+			# reward = (54 - num_blocks)**2 + self._avgBlocksInRow()
 
 			# get the average sum of each 3 elements in self.state 
 

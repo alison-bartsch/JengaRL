@@ -5,15 +5,19 @@ import numpy as np
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
-from collections import namedtuple, deque
+from collections import namedtuple
 from itertools import count
-from jenga_discrete import JengaEnv
-# from jenga_full import JengaFullEnv
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+
+from collections import deque
+import imageio
+import time
+from jenga_discrete_voxelization import JengaEnv
+# from jenga_discrete import JengaEnv
 
 # The starter code follows the tutorial: https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
 # we recommend you going through the tutorial before implement DQN algorithm
@@ -21,29 +25,30 @@ import torch.nn.functional as F
 
 # define environment, please don't change 
 env = JengaEnv()
-# env = JengaFullEnv()
 
 # define transition tuple
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
-
 
 class ReplayMemory(object):
     """
     define replay buffer class
     """
     def __init__(self, capacity):
-        self.memory = deque([], maxlen=capacity)
+        # raise NotImplementedError
+        self.memory = deque([],maxlen=capacity)
 
     def push(self, *args):
+        # raise NotImplementedError
         self.memory.append(Transition(*args))
 
     def sample(self, batch_size):
+        # raise NotImplementedError
         return random.sample(self.memory, batch_size)
 
     def __len__(self):
+        # raise NotImplementedError
         return len(self.memory)
-
 
 class DQN(nn.Module):
     """
@@ -56,30 +61,21 @@ class DQN(nn.Module):
         out_dim: dimension of actions
         """
         super(DQN, self).__init__()
-
-        # self.mlp = nn.Sequential(
-        #     nn.Linear(in_dim, 125),
-        #     nn.ReLU(),
-        #     nn.Linear(125, 125),
-        #     nn.ReLU(),
-        #     nn.Linear(125, out_dim))
-
-        self.fc1 = nn.Linear(in_dim, 600)
-        self.fc2 = nn.Linear(600, 600)
-        self.fc3 = nn.Linear(600, 600)
-        self.fc4 = nn.Linear(600, out_dim)
+        # build your model here
+        self.fc1 = nn.Linear(in_dim,400)
+        self.fc2 = nn.Linear(400,400)
+        self.fc3 = nn.Linear(400,400)
+        self.fc4 = nn.Linear(400,out_dim)
         self.relu = nn.LeakyReLU()
 
-        # initialization
-        nn.init.xavier_uniform(self.fc1.weight)
-        nn.init.xavier_uniform(self.fc2.weight)
-        nn.init.xavier_uniform(self.fc3.weight)
-        nn.init.xavier_uniform(self.fc4.weight)
+        #initialization
+        nn.init.xavier_uniform_(self.fc1.weight)
+        nn.init.xavier_uniform_(self.fc2.weight)
+        nn.init.xavier_uniform_(self.fc3.weight)
+        nn.init.xavier_uniform_(self.fc4.weight)
 
     def forward(self, x):
         # forward pass
-        # return self.mlp(x)
-
         x = torch.flatten(x, 1)
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
@@ -88,103 +84,106 @@ class DQN(nn.Module):
         return x
 
 
-
-
-
-
 # hyper parameters you can play with
-BATCH_SIZE = 64     # 128    
-GAMMA = 0.9         # 0.95 
-EPS_START = 0.9     # 0.99 
-EPS_END = 0.01      # 0.012 
-EPS_DECAY = 5000    # 2000 
-TARGET_UPDATE = 20  # 10
-MEMORY_CAPACITY = 50000     # 10000 
-LEARNING_RATE = 8e-5
-num_episodes = 4 # 800
-SAVE_STR = 'disc_row_R'  # 'disc_std_R'     # 'disc_high_R'
+BATCH_SIZE = 64    #32 for 12 layer
+GAMMA = 0.9        #0.9 for 12 layer
+EPS_START = 0.9    #0.9 for 12 layer
+EPS_END = 0.01        #0.01 for 12 layer
+EPS_DECAY = 5000      # 200 for 12 layer
+TARGET_UPDATE = 20    #10 for 12 layer
+MEMORY_CAPACITY = 50000  
+SAVE_STR = 'fullgame_std_R'     # 'disc_row_R'  # 'disc_std_R'     # 'disc_high_R'
+PATH = './Models/model_fullgame_best_.ckpt'
+LR = 8e-5        #1e-4 for 12 layer
+num_episodes = 800   #500 for 12 layer
 
 n_actions = env.action_space.n
-n_states = env.observation_space.shape[0]
+n_states = env.num_layer * 9
 
-policy_net = DQN(n_states, n_actions)   # .to(device)
-target_net = DQN(n_states, n_actions)   # .to(device)
+policy_net = DQN(n_states, n_actions)
+target_net = DQN(n_states, n_actions)
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
-optimizer = optim.Adam(policy_net.parameters(), lr=LEARNING_RATE)
+optimizer = optim.Adam(policy_net.parameters(), LR)
 memory = ReplayMemory(MEMORY_CAPACITY)
 
 steps_done = 0
 
+
+
 def select_action(state):
     # given state, return the action with highest probability on the prediction of DQN model
     # you are recommended to also implement a soft-greedy here
+    # raise NotImplementedError
     global steps_done
     sample = random.random()
-    threshold = EPS_END + (EPS_START - EPS_END) * math.exp(-1.0 * steps_done / EPS_DECAY)
-    steps_done+=1
-
-    if sample > threshold:
+    eps_threshold = EPS_END + (EPS_START - EPS_END) * \
+        math.exp(-1. * steps_done / EPS_DECAY)
+    steps_done += 1
+    # print(eps_threshold)
+    if sample > eps_threshold:
         with torch.no_grad():
-            return policy_net(state).max(1)[1].unsqueeze(1)
-    else:
-        return torch.tensor([[random.randrange(n_actions)]], dtype=torch.long) # , device=device)
+            # second column on max result is index of where max element was
+            Q_value_total = policy_net(state)
 
+            actions = torch.sort(Q_value_total,descending = True,dim = 1)[1]
+            for i in actions[0,:]:
+                if i.item() in env.blocks_buffer:
+                    action = i
+                    return torch.tensor([[action.item()]])
+    else:
+        return torch.tensor([[np.random.choice(env.blocks_buffer)]], dtype=torch.long)
 
 
 def optimize_model():
     # optimize the DQN model by sampling a batch from replay buffer
+    # raise NotImplementedError
     if len(memory) < BATCH_SIZE:
         return
-
-    # sample transitions from the replay buffer
     transitions = memory.sample(BATCH_SIZE)
     batch = Transition(*zip(*transitions))
 
-    # create a mask that can be used to eliminate all isntances of final states when indexing
-    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), dtype=torch.bool)
+    # Compute a mask of non-final states and concatenate the batch elements
+    # (a final state would've been the one after which simulation ended)
+    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
+                                          batch.next_state)), dtype=torch.bool)
+    non_final_next_states = torch.cat([s for s in batch.next_state
+                                                if s is not None])
+    state_batch = torch.cat(batch.state)
+    action_batch = torch.cat(batch.action)
+    reward_batch = torch.cat(batch.reward)
 
-    # get the next states that are not final (where the simulation ended)
-    non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
+    # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
+    # columns of actions taken. These are the actions which would've been taken
+    # for each batch state according to policy_net
+    state_action_values = policy_net(state_batch).gather(1, action_batch)
 
-    state = torch.cat(batch.state)
-    action = torch.cat(batch.action)
-    reward = torch.cat(batch.reward)
+    # Compute V(s_{t+1}) for all next states.
+    next_state_values = torch.zeros(BATCH_SIZE)
+    next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
+    # Compute the expected Q values
+    expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
-    # compute Q(s_t,a)
-    Q_val = policy_net(state).gather(1, action)
-
-    # compute V(s_{t+1}), where the expected next value will remain zero if the state is final
-    V_next = torch.zeros(BATCH_SIZE)
-    V_next[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
-
-    # expected Q value
-    Q_expected = (V_next * GAMMA) + reward
-
-    # compute loss
+    # Compute Huber loss
     criterion = nn.SmoothL1Loss()
-    loss = criterion(Q_val, Q_expected.unsqueeze(1))
+    loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
 
-    # optimization
+    # Optimize the model
     optimizer.zero_grad()
     loss.backward()
     for param in policy_net.parameters():
-        param.grad.data.clamp_(-1,1)
+        param.grad.data.clamp_(-1, 1)
     optimizer.step()
 
 
-
-
-num_blocks = [] # keeps track of the number of blocks removed
+episode_durations = []
 cumulative_r = []
 for i_episode in range(num_episodes):
     # Initialize the environment and state
     state = env.reset()
     state = torch.from_numpy(state).float().view(1, -1)
-
-    r_total = 0
-
+    r_total=0
     for t in count():
         # Select and perform an action
         action = select_action(state)
@@ -199,8 +198,7 @@ for i_episode in range(num_episodes):
 
         # Store the transition in memory
         memory.push(state, action, next_state, reward)
-
-        blocks_removed = 51 - np.sum(state.numpy())
+        # print(len(memory))
 
         # Move to the next state
         state = next_state
@@ -209,95 +207,97 @@ for i_episode in range(num_episodes):
         # Perform one step of the optimization (on the target network)
         optimize_model()
         if done:
-            # print(state)
-            num_blocks.append(blocks_removed)
-            print(" ------------ Episode: {}, num blocks removed: {}".format(i_episode, blocks_removed))
+            episode_durations.append(t + 1)
+            print("Episode: {}, # blocks: {}".format(i_episode, t+1))
             break
 
+    cumulative_r.append(r_total.numpy())
+    
     # Update the target network, copying all weights and biases in DQN
     if i_episode % TARGET_UPDATE == 0:
         target_net.load_state_dict(policy_net.state_dict())
 
-    cumulative_r.append(r_total.numpy())
+    if episode_durations[-1] == max(episode_durations) or i_episode % 20 == 0:
+        # save the checkpoint
+        torch.save({
+                'epoch': i_episode,
+                'model_state_dict': policy_net.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                }, PATH)
+        print("Save the best model with duration", episode_durations[-1])
 
-
-# save the trained model
-POLICY_PATH = './Models/' + SAVE_STR +'_policy.ckpt'
-TARGET_PATH = './Models/' + SAVE_STR + '_target.ckpt'
-torch.save(policy_net.state_dict(), POLICY_PATH)
-torch.save(target_net.state_dict(), TARGET_PATH)
 
 # save the data in a csv file for plotting later on
 pd.DataFrame(cumulative_r).to_csv('./Data/' + SAVE_STR + '_reward.csv', header=None, index=None)
-pd.DataFrame(num_blocks).to_csv('./Data/' + SAVE_STR + 'train_blocks_removed.csv', header=None, index=None)
+pd.DataFrame(episode_durations).to_csv('./Data/' + SAVE_STR + 'train_blocks_removed.csv', header=None, index=None)
 
-# plot the reward over training
+
+# load the checkpoint
+checkpoint = torch.load(PATH)
+policy_net.load_state_dict(checkpoint['model_state_dict'])
+
+policy_net.eval()
+
+# plot blocks removed
+plt.figure()
+plt.plot(np.arange(len(episode_durations)), episode_durations)
+plt.xlabel("Episode")
+plt.ylabel("Num Blocks from Tower")
+plt.savefig('./Graphs/' + SAVE_STR + '_blocks_removed.png')
+
+# plot reward
 plt.figure()
 plt.plot(np.arange(len(cumulative_r)), cumulative_r)
 plt.xlabel("Episode")
 plt.ylabel("Reward")
 plt.savefig('./Graphs/' + SAVE_STR + '_reward.png')
 
-# calculate the moving average with a window of 50 episodes
-window_size = 50
-i = 0
-moving_averages = []
-while i < len(num_blocks) - window_size + 1:
-    this_window = num_blocks[i : i + window_size]
-
-    window_average = sum(this_window) / window_size
-    moving_averages.append(window_average)
-    i += 1
-
-# plot time duration
-plt.figure()
-plt.plot(np.arange(len(num_blocks)), num_blocks)
-plt.plot(np.arange(len(moving_averages)), moving_averages)
-plt.xlabel("Episode")
-plt.ylabel("Number of blocks removed from tower")
-plt.legend(["After Each Episode", "Moving Average Over 50 Episodes"])
-plt.savefig('./Graphs/' + SAVE_STR + '_blocks_removed.png')
 
 
-vis_num_blocks = []
+# # visualize 
+# duration = []
+# frames = []
+# state = env.reset()
+# state = torch.from_numpy(state).float().view(1, -1)
+# # blocks_buffer = list(range(24))
+# for t in count():
+#     # env.render()
+#     # frames.append(env.render("rgb_array"))
 
+#     # Select and perform an action
+#     q_values = policy_net(state)
+#     actions = torch.sort(q_values,descending = True,dim = 1)[1]
 
-# visualize 
-for i in range(10):
-    # env.visualize()
+#     for i in actions[0,:]:
+#         if i.item() in env.blocks_buffer:
+#             action = i
+#             break
+#     print(action.item())
+#     # for 
+#     new_state, reward, done, _ = env.step(action.item())
+#     time.sleep(1/5)
+#     reward = torch.tensor([reward])
+#     # print(reward.item())
+#     # blocks_buffer.remove(action.item())
+#     # Observe new state
+#     if not done:
+#         next_state = torch.from_numpy(new_state).float().view(1, -1)
+#     else:
+#         next_state = None
 
-    state = env.reset()
-    state = torch.from_numpy(state).float().view(1, -1)
-    for t in count():
-        # env.render()
+#     # Move to the next state
+#     state = next_state
 
-        # Select and perform an action
-        action = select_action(state)
-        new_state, reward, done, _ = env.step(action.item())
-        reward = torch.tensor([reward])
+#     if done:
+#         # episode_durations.append(t + 1)
+#         # print("Duration:", t+1)
+#         # duration.append(t+1)
+#         break
+# print('The mean duration of all the 10 episodes during test is:',np.mean(duration))
 
-        # Observe new state
-        if not done:
-            next_state = torch.from_numpy(new_state).float().view(1, -1)
-        else:
-            next_state = None
-
-        blocks_removed = 51 - np.sum(state.numpy())
-
-        # Move to the next state
-        state = next_state
-
-        if done:
-            num_blocks.append(blocks_removed)
-            vis_num_blocks.append(blocks_removed)
-            # print("\nNumber of Blocks Removed:", blocks_removed)
-            break
-
-print("Mean # Blocks Removed Test Episodes: ", np.sum(vis_num_blocks) / len(vis_num_blocks))
-
-# save data to csv
-pd.DataFrame(vis_num_blocks).to_csv('./Data/' + SAVE_STR + 'test_blocks_removed.csv', header=None, index=None)
-
+# imageio.mimsave('./video.mp4', frames, 'MP4', fps=20)
+# plt.show()
 env.close()
+
 
 

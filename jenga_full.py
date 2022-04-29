@@ -78,18 +78,24 @@ class JengaFullEnv(gym.Env):
 
 			# if there are no blocks add block to center
 			if self.top_layer_size == 3:
-				print("3 blocks here!")
+				print("3 blocks here - middle block!")
 				position = [0,0,0+0.3*(self.tower_layer+1)-0.2]
 
 			# if there are 2 blocks, add block to one side
 			elif self.top_layer_size == 2:
-				print("2 blocks here!")
-				position = [-(0.5),0,0+0.3*(self.tower_layer+1)-0.2]
+				print("2 blocks here - side block!")
+				if self.tower_layer % 2 == 0:
+					position = [-(0.5),0,0+0.3*(self.tower_layer+1)-0.2]
+				else:
+					position = [0,-(0.5),0+0.3*(self.tower_layer+1)-0.2]
 
 			# if there is 1 block, add block to one side
 			elif self.top_layer_size == 1:
-				print("1 block here!")
-				position = [(0.5),0,0+0.3*(self.tower_layer+1)-0.2]
+				print("1 block here - side block!")
+				if self.tower_layer % 2 == 0:
+					position = [(0.5),0,0+0.3*(self.tower_layer+1)-0.2]
+				else:
+					position = [0,(0.5),0+0.3*(self.tower_layer+1)-0.2]
 
 			if self.tower_layer % 2 == 1:
 				print("odd tower layer")
@@ -280,7 +286,7 @@ class JengaFullEnv(gym.Env):
 
 # create a stable tower
 # it's not a easy way!
-env = JengaFullEnv()
+env = JengaFullEnv(visualize=True)
 done = False
 for i in range(300):
 	# print("Stepping the simulation")
@@ -290,9 +296,14 @@ for i in range(300):
 # random remove one jengas
 
 print("Now start to remove the  jenga.")
+ctr_blocks = [49, 46, 43, 40, 37, 34, 31, 28, 25, 22, 19, 16, 13, 10, 7, 4, 1]
+j = 0
 while not done:
-	action = env.action_space.sample()
+	# action = env.action_space.sample()
+	action = ctr_blocks[j]
+	print("Action Selected: ", action)
 	state,rw,done,info = env.step(action)
+	j+=1
 	# print(state)
 	# print("Reward: ", rw)
 # show what happened following
