@@ -133,13 +133,16 @@ def select_action(state):
             # second column on max result is index of where max element was
             Q_value_total = policy_net(state)
             actions = torch.sort(Q_value_total,descending = True,dim = 1)[1]
-            
+
             for i in actions[0,:]:
                 if i.item() not in env.top_layer_ids:
                     action = i 
                     return torch.tensor([[action.item()]])
     else:
-        return torch.tensor([[env.action_space.sample()]])
+        action = env.action_space.sample()
+        while action in env.top_layer_ids:
+            action = env.action_space.sample()
+        return torch.tensor([[action]])
 
 
     # # CODE FOR DISCRETE VOXELIZATION:
@@ -200,7 +203,7 @@ for i_episode in range(num_episodes):
     for t in count():
         # Select and perform an action
         action = select_action(state)
-        new_state, reward, done, _ = env.step(action)   # env.step(action.item())
+        new_state, reward, done, _ = env.step(action.item())   # env.step(action.item())
         reward = torch.tensor([reward])
 
         if reward > 0:
