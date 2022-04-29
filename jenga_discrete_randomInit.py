@@ -135,12 +135,14 @@ class JengaEnv(gym.Env):
                     self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[(0.5),0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION))
 
             for i in range(3):
-                state,rw,done,info=self.step(np.random.choice(self.blocks_buffer))
+                block=np.random.choice(self.blocks_buffer)
+                state,rw,done,info=self.step(block)
+                print('removed', block)
                 for i in range(300):
                     pb.stepSimulation()
                     time.sleep(1./240.)
             success = not(self.done)
-        print('we made it!')
+        print('Random Init Complete')
                 
                 
             
