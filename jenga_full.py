@@ -51,9 +51,9 @@ class JengaFullEnv(gym.Env):
 
 		else:
 			# remove block from tower
-			print("\nSampel ID: ", sampleID)
-			print("Int of Jenga Object: ", int(self.jengaObject[sampleID]))
-			print("Jenga Object: ", self.jengaObject[sampleID])
+			# print("\nSampel ID: ", sampleID)
+			# print("Int of Jenga Object: ", int(self.jengaObject[sampleID]))
+			# print("Jenga Object: ", self.jengaObject[sampleID])
 			pb.removeBody(int(self.jengaObject[sampleID])) #delete selected block
 			self.jengaObject[sampleID] = 0
 
@@ -68,9 +68,9 @@ class JengaFullEnv(gym.Env):
 			else:
 				self.top_layer_ids.append(sampleID)
 
-			print("Tower Layer: ", self.tower_layer)
-			print("Top Layer ID's: ", self.top_layer_ids)
-			print("Second Layer ID's: ", self.second_layer_ids)
+			# print("Tower Layer: ", self.tower_layer)
+			# print("Top Layer ID's: ", self.top_layer_ids)
+			# print("Second Layer ID's: ", self.second_layer_ids)
 
 			# intitialize spawning elements
 			orientation = []
@@ -78,12 +78,12 @@ class JengaFullEnv(gym.Env):
 
 			# if there are no blocks add block to center
 			if self.top_layer_size == 3:
-				print("3 blocks here - middle block!")
+				# print("3 blocks here - middle block!")
 				position = [0,0,0+0.3*(self.tower_layer+1)-0.2]
 
 			# if there are 2 blocks, add block to one side
 			elif self.top_layer_size == 2:
-				print("2 blocks here - side block!")
+				# print("2 blocks here - side block!")
 				if self.tower_layer % 2 == 0:
 					position = [-(0.5),0,0+0.3*(self.tower_layer+1)-0.2]
 				else:
@@ -91,17 +91,17 @@ class JengaFullEnv(gym.Env):
 
 			# if there is 1 block, add block to one side
 			elif self.top_layer_size == 1:
-				print("1 block here - side block!")
+				# print("1 block here - side block!")
 				if self.tower_layer % 2 == 0:
 					position = [(0.5),0,0+0.3*(self.tower_layer+1)-0.2]
 				else:
 					position = [0,(0.5),0+0.3*(self.tower_layer+1)-0.2]
 
 			if self.tower_layer % 2 == 1:
-				print("odd tower layer")
+				# print("odd tower layer")
 				self.jengaObject[sampleID] = pb.loadURDF('jenga/jenga.urdf', basePosition=position, useFixedBase=False,flags = pb.URDF_USE_SELF_COLLISION)
 			else:
-				print("even tower layer")
+				# print("even tower layer")
 				orientation = [0,0,0.7071,0.7071]
 				self.jengaObject[sampleID] = pb.loadURDF('jenga/jenga.urdf', basePosition=position, baseOrientation=orientation,useFixedBase=False,flags = pb.URDF_USE_SELF_COLLISION)
 		
@@ -142,6 +142,7 @@ class JengaFullEnv(gym.Env):
 		planeId = pb.loadURDF('plane.urdf')
 
 		self.done = False
+		self.num_removed = 0
 
 		self.jengaObject = np.zeros(54)
 		fix_flag = False
@@ -159,8 +160,8 @@ class JengaFullEnv(gym.Env):
 				self.jengaObject[layer*3 + 1] = pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
 				self.jengaObject[layer*3 + 2] = pb.loadURDF('jenga/jenga.urdf', basePosition=[(0.5),0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION)
 
-		print("Jenga Object: ", self.jengaObject)
-		print("Created the Jenga Tower!")
+		# print("Jenga Object: ", self.jengaObject)
+		print("\nCreated the Jenga Tower!")
 
 		# reset the state array
 		self.state = self._initialize_adjacency_matrix(54)
@@ -282,34 +283,34 @@ class JengaFullEnv(gym.Env):
 
 
 
-# test code - see what is going on
+# # test code - see what is going on
 
-# create a stable tower
-# it's not a easy way!
-env = JengaFullEnv(visualize=True)
-done = False
-for i in range(300):
-	# print("Stepping the simulation")
-	pb.stepSimulation()
-	time.sleep(1./240.)
+# # create a stable tower
+# # it's not a easy way!
+# env = JengaFullEnv(visualize=True)
+# done = False
+# for i in range(300):
+# 	# print("Stepping the simulation")
+# 	pb.stepSimulation()
+# 	time.sleep(1./240.)
 
-# random remove one jengas
+# # random remove one jengas
 
-print("Now start to remove the  jenga.")
-ctr_blocks = [49, 46, 43, 40, 37, 34, 31, 28, 25, 22, 19, 16, 13, 10, 7, 4, 1]
-j = 0
-while not done:
-	# action = env.action_space.sample()
-	action = ctr_blocks[j]
-	print("Action Selected: ", action)
-	state,rw,done,info = env.step(action)
-	j+=1
-	# print(state)
-	# print("Reward: ", rw)
-# show what happened following
-for i in range(300):
-	pb.stepSimulation()
-	time.sleep(1./240.)
-# close the pybullet
-# # pb.disconnect()
+# print("Now start to remove the  jenga.")
+# ctr_blocks = [49, 46, 43, 40, 37, 34, 31, 28, 25, 22, 19, 16, 13, 10, 7, 4, 1]
+# j = 0
+# while not done:
+# 	# action = env.action_space.sample()
+# 	action = ctr_blocks[j]
+# 	print("Action Selected: ", action)
+# 	state,rw,done,info = env.step(action)
+# 	j+=1
+# 	# print(state)
+# 	# print("Reward: ", rw)
+# # show what happened following
+# for i in range(300):
+# 	pb.stepSimulation()
+# 	time.sleep(1./240.)
+# # close the pybullet
+# # # pb.disconnect()
 

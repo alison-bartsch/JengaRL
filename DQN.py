@@ -16,7 +16,7 @@ import torch.nn.functional as F
 from collections import deque
 import imageio
 import time
-from jenga_discrete_voxelization import JengaEnv
+# from jenga_discrete_voxelization import JengaEnv
 from jenga_full import JengaFullEnv
 # from jenga_discrete import JengaEnv
 
@@ -25,7 +25,9 @@ from jenga_full import JengaFullEnv
 
 
 # define environment, please don't change 
-env = JengaEnv()
+# env = JengaEnv()
+env = JengaFullEnv(visualize=False)
+print("Environment: ", env)
 
 # define transition tuple
 Transition = namedtuple('Transition',
@@ -99,7 +101,10 @@ LR = 8e-5        #1e-4 for 12 layer
 num_episodes = 800   #500 for 12 layer
 
 n_actions = env.action_space.n
-n_states = env.num_layer * 9
+n_states = env.observation_space.n[0] * env.observation_space.n [1]      # env.num_layer * 9
+
+print("N Actions: ", n_actions)
+print("N States: ", n_states)
 
 policy_net = DQN(n_states, n_actions)
 target_net = DQN(n_states, n_actions)
@@ -130,11 +135,18 @@ def select_action(state):
 
             actions = torch.sort(Q_value_total,descending = True,dim = 1)[1]
             for i in actions[0,:]:
-                if i.item() in env.blocks_buffer:
-                    action = i
-                    return torch.tensor([[action.item()]])
+                action = i 
+                return torch.tensor([[action.item()]])
     else:
-        return torch.tensor([[np.random.choice(env.blocks_buffer)]], dtype=torch.long)
+        return env.action_space.sample()
+
+
+    # # CODE FOR DISCRETE VOXELIZATION:
+    #             if i.item() in env.blocks_buffer:
+    #                 action = i
+    #                 return torch.tensor([[action.item()]])
+    # else:
+    #     return torch.tensor([[np.random.choice(env.blocks_buffer)]], dtype=torch.long)
 
 
 def optimize_model():
@@ -188,7 +200,7 @@ for i_episode in range(num_episodes):
     for t in count():
         # Select and perform an action
         action = select_action(state)
-        new_state, reward, done, _ = env.step(action.item())
+        new_state, reward, done, _ = env.step(action)   # env.step(action.item())
         reward = torch.tensor([reward])
 
         # # Observe new state
@@ -209,7 +221,7 @@ for i_episode in range(num_episodes):
         optimize_model()
         if done:
             episode_durations.append(t + 1)
-            print("Episode: {}, # blocks: {}".format(i_episode, t+1))
+            print("------------- Episode: {}/{}, Num blocks: {} --------------".format(i_episode, num_episodes, t+1))
             break
 
     cumulative_r.append(r_total.numpy())
@@ -274,16 +286,19 @@ plt.savefig('./Graphs/' + SAVE_STR + '_reward.png')
 #     actions = torch.sort(q_values,descending = True,dim = 1)[1]
 
 #     for i in actions[0,:]:
-#         if i.item() in env.blocks_buffer:
-#             action = i
-#             break
+#         action = i
+#         break
+
+#        # if i.item() in env.blocks_buffer:
+#        #     action = i
+#        #     break
 #     print(action.item())
 #     # for 
 #     new_state, reward, done, _ = env.step(action.item())
 #     time.sleep(1/5)
 #     reward = torch.tensor([reward])
 #     # print(reward.item())
-#     # blocks_buffer.remove(action.item())
+#     # blocks_buffer.remove(action.item())     
 #     # Observe new state
 #     if not done:
 #         next_state = torch.from_numpy(new_state).float().view(1, -1)
