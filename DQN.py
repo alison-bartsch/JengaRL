@@ -132,13 +132,14 @@ def select_action(state):
         with torch.no_grad():
             # second column on max result is index of where max element was
             Q_value_total = policy_net(state)
-
             actions = torch.sort(Q_value_total,descending = True,dim = 1)[1]
+            
             for i in actions[0,:]:
-                action = i 
-                return torch.tensor([[action.item()]])
+                if i.item() not in env.top_layer_ids:
+                    action = i 
+                    return torch.tensor([[action.item()]])
     else:
-        return env.action_space.sample()
+        return torch.tensor([[env.action_space.sample()]])
 
 
     # # CODE FOR DISCRETE VOXELIZATION:
@@ -159,10 +160,8 @@ def optimize_model():
 
     # Compute a mask of non-final states and concatenate the batch elements
     # (a final state would've been the one after which simulation ended)
-    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
-                                          batch.next_state)), dtype=torch.bool)
-    non_final_next_states = torch.cat([s for s in batch.next_state
-                                                if s is not None])
+    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), dtype=torch.bool)
+    non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
     state_batch = torch.cat(batch.state)
     action_batch = torch.cat(batch.action)
     reward_batch = torch.cat(batch.reward)
@@ -190,18 +189,22 @@ def optimize_model():
     optimizer.step()
 
 
-episode_durations = []
+n_blocks_removed = []
 cumulative_r = []
 for i_episode in range(num_episodes):
     # Initialize the environment and state
     state = env.reset()
     state = torch.from_numpy(state).float().view(1, -1)
     r_total=0
+    n_rem = 0
     for t in count():
         # Select and perform an action
         action = select_action(state)
         new_state, reward, done, _ = env.step(action)   # env.step(action.item())
         reward = torch.tensor([reward])
+
+        if reward > 0:
+            n_rem+=1
 
         # # Observe new state
         if not done:
@@ -220,8 +223,8 @@ for i_episode in range(num_episodes):
         # Perform one step of the optimization (on the target network)
         optimize_model()
         if done:
-            episode_durations.append(t + 1)
-            print("------------- Episode: {}/{}, Num blocks: {} --------------".format(i_episode, num_episodes, t+1))
+            n_blocks_removed.append(n_rem)
+            print("------------- Episode: {}/{}, Num blocks: {} --------------".format(i_episode, num_episodes, n_rem))
             break
 
     cumulative_r.append(r_total.numpy())
@@ -230,24 +233,24 @@ for i_episode in range(num_episodes):
     if i_episode % TARGET_UPDATE == 0:
         target_net.load_state_dict(policy_net.state_dict())
 
-    if episode_durations[-1] == max(episode_durations) or i_episode % 20 == 0:
+    if n_blocks_removed[-1] == max(n_blocks_removed) or i_episode % 20 == 0:
         # save the checkpoint
         torch.save({
                 'epoch': i_episode,
                 'model_state_dict': policy_net.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 }, PATH)
-        print("Save the best model with duration", episode_durations[-1])
+        print("Save the model w/ {} blocks removed".format(n_blocks_removed[-1]))
 
 
 # save the data in a csv file for plotting later on
 pd.DataFrame(cumulative_r).to_csv('./Data/' + SAVE_STR + '_reward.csv', header=None, index=None)
-pd.DataFrame(episode_durations).to_csv('./Data/' + SAVE_STR + 'train_blocks_removed.csv', header=None, index=None)
+pd.DataFrame(n_blocks_removed).to_csv('./Data/' + SAVE_STR + 'train_blocks_removed.csv', header=None, index=None)
 
 
 # plot blocks removed
 plt.figure()
-plt.plot(np.arange(len(episode_durations)), episode_durations)
+plt.plot(np.arange(len(n_blocks_removed)), n_blocks_removed)
 plt.xlabel("Episode")
 plt.ylabel("Num Blocks from Tower")
 plt.savefig('./Graphs/' + SAVE_STR + '_blocks_removed.png')
@@ -309,7 +312,7 @@ plt.savefig('./Graphs/' + SAVE_STR + '_reward.png')
 #     state = next_state
 
 #     if done:
-#         # episode_durations.append(t + 1)
+#         # n_blocks_removed.append(t + 1)
 #         # print("Duration:", t+1)
 #         # duration.append(t+1)
 #         break
