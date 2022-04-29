@@ -17,6 +17,7 @@ from collections import deque
 import imageio
 import time
 from jenga_discrete_voxelization import JengaEnv
+from jenga_full import JengaFullEnv
 # from jenga_discrete import JengaEnv
 
 # The starter code follows the tutorial: https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
@@ -232,12 +233,6 @@ pd.DataFrame(cumulative_r).to_csv('./Data/' + SAVE_STR + '_reward.csv', header=N
 pd.DataFrame(episode_durations).to_csv('./Data/' + SAVE_STR + 'train_blocks_removed.csv', header=None, index=None)
 
 
-# load the checkpoint
-checkpoint = torch.load(PATH)
-policy_net.load_state_dict(checkpoint['model_state_dict'])
-
-policy_net.eval()
-
 # plot blocks removed
 plt.figure()
 plt.plot(np.arange(len(episode_durations)), episode_durations)
@@ -253,6 +248,16 @@ plt.ylabel("Reward")
 plt.savefig('./Graphs/' + SAVE_STR + '_reward.png')
 
 
+
+
+
+
+
+# # load the checkpoint
+# checkpoint = torch.load(PATH)
+# policy_net.load_state_dict(checkpoint['model_state_dict'])
+
+# policy_net.eval()
 
 # # visualize 
 # duration = []
