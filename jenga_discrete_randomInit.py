@@ -13,17 +13,22 @@ class JengaEnv(gym.Env):
     def __init__(self):
         # Define action space - discrete action that can take on 51 values (id's of the jenga blocks)
         # the top three blocks should never be moved
-        self.action_space = gym.spaces.Discrete(6) #total:51
+
+        self.num_layer = 12 # here is the only thing that you need to change
+        self.done = False
+        self.num_blocks = 3 * self.num_layer - 3 #top 3 blocks are elimited
+
+        self.action_space = gym.spaces.Discrete(self.num_blocks) #total:51
         self.observation_space = gym.spaces.box.Box(
-            low=np.zeros(6, dtype=np.float32),
-            high=np.ones(6, dtype=np.float32))
+            low=np.zeros((3,3,self.num_layer), dtype=np.float32),
+            high=np.ones((3,3,self.num_layer), dtype=np.float32))
 
         # Define the state - cannot randomly initialize, because Jenga blocks are ordered
         # self.state=np.array(range(54))
         
         # print("State: ", self.state)
-        self.physicsClient = pb.connect(pb.DIRECT)
-        # self.physicsClient = pb.connect(pb.GUI)
+        # self.physicsClient = pb.connect(pb.DIRECT)
+        self.physicsClient = pb.connect(pb.GUI)
 
         pb.setTimeStep(1/60, self.physicsClient) # it's vital for stablity
 
@@ -56,24 +61,35 @@ class JengaEnv(gym.Env):
         # plt.pause(.00001)
 
     def step(self, sampleID):
-        pb.removeBody(self.jengaObject[sampleID]) #delete selected block
-        # print(len(self.jengaObject))
-        self.state[sampleID] = -10 #update state to describe remaining blocks
+        #delete selected block
+        pb.removeBody(self.jengaObject[sampleID]) 
+
+        # get the position of the sample
+        layer = int(sampleID / 3)
+        pos = sampleID - int(sampleID / 3) * 3
+
+        # update the state
+        if layer % 2 == 0:
+            self.state[:,pos,layer] = 0
+        else:
+            self.state[pos,:,layer] = 0
+
         # print("State Shape: ", self.state.shape)
         self.blocks_buffer.remove(sampleID)
 
         self.num_blocks -= 1
-        for _ in range(150): 
+
+        for _ in range(90): 
             pb.stepSimulation()
 
-        reward = (6 - self.num_blocks) #increase reward for more blocks removed from tower
+        reward = (3 * self.num_layer - 3 - self.num_blocks)**2 + sampleID #increase reward for more blocks removed from tower
 
         # due to the top 3 blocks never moved, we can use them to indicate the fall or not
         pos, ang = pb.getBasePositionAndOrientation(self.jengaObject[-1], self.physicsClient)
-        if pos[2] >= 0.7:  # the accurate value should be 5.25, but we should take some viberation into consideration
+        if pos[2] >= 0.3 * self.num_layer - 0.5:  # the accurate value should be 5.25, but we should take some viberation into consideration
             self.done = False
         else:
-            reward = -300
+            reward = -100
             self.done = True
 
         outputs = [self.state, reward, self.done, dict()]
@@ -85,9 +101,9 @@ class JengaEnv(gym.Env):
         pb.setGravity(0, 0, -10, physicsClientId=self.physicsClient)
         planeId = pb.loadURDF('plane.urdf')
 
-        self.state = np.ones(6) 
+        self.state = np.ones((3,3, self.num_layer)) 
         self.done = False
-        self.num_blocks = 6
+        self.num_blocks = 3 * self.num_layer - 3
         self.blocks_buffer = list(range(self.num_blocks))
         # jengaId = pb.loadURDF('jenga/jenga.urdf', basePosition=[0,-0.05,0+.025*(1)])
         # block_measure = tuple(map(lambda i, j: i - j, pb.getAABB(jengaId)[1], pb.getAABB(jengaId)[0]))
@@ -97,24 +113,37 @@ class JengaEnv(gym.Env):
         #block_length = 
         self.jengaObject=[]
         fix_flag = False
-        for layer in range(3): # test:6; total:18
-            if layer == 0:
-                self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[-(0.5),0,0+0.3*(layer+1)-0.15],baseOrientation=[0,0,0.7071,0.7071],useFixedBase= True,flags = pb.URDF_USE_SELF_COLLISION))
-                self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15],baseOrientation=[0,0,0.7071,0.7071],useFixedBase= True,flags = pb.URDF_USE_SELF_COLLISION))
-                self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[(0.5),0,0+0.3*(layer+1)-0.15],baseOrientation=[0,0,0.7071,0.7071],useFixedBase= True,flags = pb.URDF_USE_SELF_COLLISION))
-            elif layer%2 ==1:
-                self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,-(0.5),0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION))
-                self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION))
-                self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,(0.5),0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION))
-            else:
-                self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[-(0.5),0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION))
-                self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION))
-                self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[(0.5),0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION))
+        
+        #randomly remove some blocks
+        success=0
+        while not success:
+            pb.resetSimulation(self.physicsClient)
+            pb.setGravity(0, 0, -10, physicsClientId=self.physicsClient)
+            planeId = pb.loadURDF('plane.urdf')
+            for layer in range(self.num_layer): # test:6; total:18
+                if layer == 0:
+                    self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[-(0.5),0,0+0.3*(layer+1)-0.15],baseOrientation=[0,0,0.7071,0.7071],useFixedBase= True,flags = pb.URDF_USE_SELF_COLLISION))
+                    self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15],baseOrientation=[0,0,0.7071,0.7071],useFixedBase= True,flags = pb.URDF_USE_SELF_COLLISION))
+                    self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[(0.5),0,0+0.3*(layer+1)-0.15],baseOrientation=[0,0,0.7071,0.7071],useFixedBase= True,flags = pb.URDF_USE_SELF_COLLISION))
+                elif layer%2 ==1:
+                    self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,-(0.5),0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION))
+                    self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION))
+                    self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,(0.5),0+0.3*(layer+1)-0.15],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION))
+                else:
+                    self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[-(0.5),0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION))
+                    self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[0,0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION))
+                    self.jengaObject.append(pb.loadURDF('jenga/jenga.urdf', basePosition=[(0.5),0,0+0.3*(layer+1)-0.15], baseOrientation=[0,0,0.7071,0.7071],useFixedBase= fix_flag,flags = pb.URDF_USE_SELF_COLLISION))
 
-        # self.rewardBoard = pb.loadURDF("jenga/jenga.urdf", basePosition=[0,0,.03*(18)+0.05], globalScaling=3)
-        # print("Created the Jenga Tower!")
-        # pos, ang = pb.getBasePositionAndOrientation(self.jengaObject[-1], self.physicsClient)
-        # print(pos)
+            for i in range(3):
+                state,rw,done,info=self.step(np.random.choice(self.blocks_buffer))
+                for i in range(300):
+                    pb.stepSimulation()
+                    time.sleep(1./240.)
+            success = not(self.done)
+        print('we made it!')
+                
+                
+            
         return self.state
 
 if __name__ == "__main__":
@@ -132,15 +161,13 @@ if __name__ == "__main__":
     print("Now start to remove the  jenga.")
 
     while not done:
-        print(env.blocks_buffer)
         action = np.random.choice(env.blocks_buffer)
-        print(action)
+        print('action:', action)
         state,rw,done,info = env.step(action)
-        print(rw)
+        print('reward:',rw)
 
     # show what happened following
     for i in range(300):
-        env.render()
         pb.stepSimulation()
         time.sleep(1./240.)
     # close the pybullet
