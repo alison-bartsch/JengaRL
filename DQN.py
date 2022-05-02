@@ -63,10 +63,10 @@ class DQN(nn.Module):
         """
         super(DQN, self).__init__()
         # build your model here
-        self.fc1 = nn.Linear(in_dim,400)
-        self.fc2 = nn.Linear(400,400)
-        self.fc3 = nn.Linear(400,400)
-        self.fc4 = nn.Linear(400,out_dim)
+        self.fc1 = nn.Linear(in_dim,600)
+        self.fc2 = nn.Linear(600,600)
+        self.fc3 = nn.Linear(600,600)
+        self.fc4 = nn.Linear(600,out_dim)
         self.relu = nn.LeakyReLU()
 
         #initialization
@@ -93,7 +93,7 @@ EPS_END = 0.01        #0.01 for 12 layer
 EPS_DECAY = 5000      # 200 for 12 layer
 TARGET_UPDATE = 20    #10 for 12 layer
 MEMORY_CAPACITY = 50000  
-PATH = './model_12layer_best.ckpt'
+PATH = './model_18layer_best.ckpt'
 LR = 8e-5        #1e-4 for 12 layer
 num_episodes = 800   #500 for 12 layer
 

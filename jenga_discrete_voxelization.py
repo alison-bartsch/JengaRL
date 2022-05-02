@@ -14,7 +14,7 @@ class JengaEnv(gym.Env):
 		# Define action space - discrete action that can take on 51 values (id's of the jenga blocks)
 		# the top three blocks should never be moved
 
-		self.num_layer = 12 # here is the only thing that you need to change
+		self.num_layer = 18 # here is the only thing that you need to change
 		self.done = False
 		self.num_blocks = 3 * self.num_layer - 3 #top 3 blocks are elimited
 
