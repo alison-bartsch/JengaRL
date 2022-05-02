@@ -6,6 +6,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from collections import namedtuple
 from itertools import count
+import pandas as pd
 
 import torch
 import torch.nn as nn
@@ -94,6 +95,7 @@ EPS_DECAY = 5000      # 200 for 12 layer
 TARGET_UPDATE = 20    #10 for 12 layer
 MEMORY_CAPACITY = 50000  
 PATH = './model_curriculum.ckpt'
+SAVE_STR = 'DQN_curriculum' 
 LR = 8e-5        #1e-4 for 12 layer
 num_episodes = 800   #500 for 12 layer
 
@@ -181,10 +183,13 @@ def optimize_model():
         param.grad.data.clamp_(-1, 1)
     optimizer.step()
 
-
 episode_durations = []
+cumulative_r = []
 num_control_layer = 3
 for i_episode in range(num_episodes):
+
+    r_total=0
+
     if i_episode % 50 == 0 and num_control_layer<16:
         num_control_layer += 1
     
@@ -210,6 +215,8 @@ for i_episode in range(num_episodes):
 
         # Move to the next state
         state = next_state
+        r_total+=reward
+
 
         # Perform one step of the optimization (on the target network)
         optimize_model()
@@ -217,6 +224,8 @@ for i_episode in range(num_episodes):
             episode_durations.append(t + 1)
             print("Episode: {}, duration: {}".format(i_episode, t+1))
             break
+    
+    cumulative_r.append(r_total.numpy())
     
     # Update the target network, copying all weights and biases in DQN
     if i_episode % TARGET_UPDATE == 0:
@@ -231,6 +240,8 @@ for i_episode in range(num_episodes):
                 }, PATH)
         print("Save the best model with duration", episode_durations[-1])
 
+pd.DataFrame(cumulative_r).to_csv('./Data/' + SAVE_STR + '_reward.csv', header=None, index=None)
+pd.DataFrame(episode_durations).to_csv('./Data/' + SAVE_STR + 'train_blocks_removed.csv', header=None, index=None)
 
 # load the checkpoint
 checkpoint = torch.load(PATH)

@@ -82,7 +82,7 @@ class JengaEnv(gym.Env):
 		for _ in range(90): 
 			pb.stepSimulation()
 
-		reward = (3 * self.num_layer - 3 - self.num_blocks)**2 + sampleID #increase reward for more blocks removed from tower
+		reward = (3 * self.num_layer - 3 - self.num_blocks)**2 +self._avgBlocksInRow() #increase reward for more blocks removed from tower
 
 		# due to the top 3 blocks never moved, we can use them to indicate the fall or not
 		pos, ang = pb.getBasePositionAndOrientation(self.jengaObject[-1], self.physicsClient)
@@ -134,6 +134,9 @@ class JengaEnv(gym.Env):
 		# pos, ang = pb.getBasePositionAndOrientation(self.jengaObject[-1], self.physicsClient)
 		# print(pos)
 		return self.state
+	def _avgBlocksInRow(self):
+		rows = self.state.sum(axis=tuple(range(self.state.ndim -1)))
+		return np.mean(rows/3)
 
 if __name__ == "__main__":
 	# test code - see what is going on
