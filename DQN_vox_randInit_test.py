@@ -2,7 +2,7 @@ import gym
 import time
 from matplotlib.cbook import flatten
 import pybullet as p
-from jenga_full import JengaFullEnv
+from jenga_discrete_randomInit import JengaEnv
 
 import math
 import random
@@ -25,7 +25,7 @@ from collections import deque
 
 
 # define environment, please don't change 
-env = JengaFullEnv()
+env = JengaEnv()
 
 # define transition tuple
 Transition = namedtuple('Transition',
@@ -35,7 +35,7 @@ Transition = namedtuple('Transition',
 
 # hyper parameters you can play with
 
-PATH = "C:/Users/ezuet/Downloads/model_fullgame_best_6000layersize.ckpt/model_fullgame_best_6000layersize.ckpt"
+PATH = './model_12layer_best.ckpt'
 
 class DQN(nn.Module):
     """
@@ -49,29 +49,28 @@ class DQN(nn.Module):
         """
         super(DQN, self).__init__()
         # build your model here
-        self.fc1 = nn.Linear(in_dim,6000)    # first version had 400 at everything
-        self.fc2 = nn.Linear(6000,6000)
-        self.fc3 = nn.Linear(6000,6000)
-        self.fc4 = nn.Linear(6000,out_dim)
+        self.fc1 = nn.Linear(in_dim,400)
+        self.fc2 = nn.Linear(400,400)
+        self.fc3 = nn.Linear(400,400)
+        self.fc4 = nn.Linear(400,out_dim)
         self.relu = nn.LeakyReLU()
-
-        #initialization
-        nn.init.xavier_uniform_(self.fc1.weight)
-        nn.init.xavier_uniform_(self.fc2.weight)
-        nn.init.xavier_uniform_(self.fc3.weight)
-        nn.init.xavier_uniform_(self.fc4.weight)
 
     def forward(self, x):
         # forward pass
+        # raise NotImplementedError
+        # print(x)
         x = torch.flatten(x, 1)
+        # print(x.shape)
+        # print(stop)
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
         x = self.relu(self.fc3(x))
         x = self.fc4(x)
         return x
 
+
 n_actions = env.action_space.n
-n_states = env.observation_space.n[0] * env.observation_space.n [1] 
+n_states = env.num_layer * 9
 
 policy_net = DQN(n_states, n_actions)
 target_net = DQN(n_states, n_actions)
@@ -85,7 +84,10 @@ policy_net.load_state_dict(checkpoint['model_state_dict'])
 
 policy_net.eval()
 
-
+# plot time duration
+plt.figure()
+plt.plot(np.arange(len(episode_durations)), episode_durations)
+plt.show()
 
 # visualize 
 duration = []
@@ -103,9 +105,9 @@ for i in range(10):
         actions = torch.sort(q_values,descending = True,dim = 1)[1]
     
         for i in actions[0,:]:
-
-            action = i
-        
+            if i.item() in env.blocks_buffer:
+                action = i
+                break
         print(action.item())
         # for 
         new_state, reward, done, _ = env.step(action.item())
