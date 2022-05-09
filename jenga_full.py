@@ -1,8 +1,10 @@
 import gym
 import math
 import numpy as np
+import pandas as pd
 import pybullet as pb
 import matplotlib.pyplot as plt
+from itertools import count
 import time
 import pybullet_data
 
@@ -15,7 +17,9 @@ class JengaFullEnv(gym.Env):
 		self.action_space = gym.spaces.Discrete(54) 
 
 		# the observation space is an adjacency matrix of dimension (54,54)
-		self.observation_space = gym.spaces.MultiBinary((54,54)) 
+		# NOTE: the 54*54 obeservation space is to get it working with PPO & A2C
+		self.observation_space = gym.spaces.MultiBinary(54*54) 
+		# self.observation_space = gym.spaces.MultiBinary((54,54)) 
 
 		# Define the state - an adjacency matrix
 		self.state = self._initialize_adjacency_matrix(54)
@@ -114,20 +118,31 @@ class JengaFullEnv(gym.Env):
 			self.state = self._update_block_adjacency(sampleID, self.state, self.top_layer_ids, self.second_layer_ids, self.top_layer_size)
 
 			self.num_removed+=1
-			reward = (self.num_removed)**2
+			# reward = (self.num_removed)**2
+
+			# SPECIAL REWARD ENCOURAGING MORE BLOCKS PER ROW - SCALE THE STANDARD REWARD BASED ON THE # BLOCKS PER ROW / 3
+			reward = ((self.num_removed)**2) * ((54 / (self.tower_layer + 1)) / 3)
 
 		for _ in range(300): 
 			pb.stepSimulation()
 
 		# use the top most block as an indication if the tower is still standing
 		idx = self.top_layer_ids[0]
+
+		print("Top Layer ID: ", idx)
+		print(int(self.jengaObject[idx]))
+		print(pb.getBasePositionAndOrientation(int(self.jengaObject[idx])))
+
 		pos, ang = pb.getBasePositionAndOrientation(int(self.jengaObject[idx]), self.physicsClient)
 		if pos[2] >= math.floor(0+0.3*(self.tower_layer+1)-0.15):
 			self.done = False
 		else:
 			reward = -100
 			self.done = True
-		outputs = [self.state, reward, self.done, dict()]
+
+		# NOTE: np.ravel is to get this environment to work with PPO & A2C
+		outputs = [np.ravel(self.state), reward, self.done, dict()]
+		# outputs = [self.state, reward, self.done, dict()]
 
 		print("Action: ", sampleID)
 		print("Reward: ", reward)
@@ -172,7 +187,9 @@ class JengaFullEnv(gym.Env):
 		self.top_layer_size = 3
 		self.second_layer_ids = [48, 49, 50]
 
-		return self.state
+		# NOTE: added this to work with PPO & A2C
+		return np.ravel(self.state)
+		# return self.state
 
 	def visualize(self):
 		self.physicsClient = pb.connect(pb.GUI)
@@ -285,16 +302,38 @@ class JengaFullEnv(gym.Env):
 
 # # test code - see what is going on
 
-# # create a stable tower
-# # it's not a easy way!
-# env = JengaFullEnv(visualize=True)
-# done = False
-# for i in range(300):
-# 	# print("Stepping the simulation")
-# 	pb.stepSimulation()
-# 	time.sleep(1./240.)
+# create a stable tower
+# it's not a easy way!
+env = JengaFullEnv(visualize=False)
+done = False
+for i in range(300):
+	# print("Stepping the simulation")
+	pb.stepSimulation()
+	time.sleep(1./240.)
 
-# # random remove one jengas
+blocks_removed = []
+# random remove one jenga
+for j in range(400):
+	state = env.reset()
+	print("Run ", j)
+	n_blocks = 0
+	for t in count():
+		action = env.action_space.sample()
+		state,rw,done,info = env.step(action)
+
+		if rw > 0:
+			n_blocks+=1
+
+
+		if done:
+			break
+
+	blocks_removed.append(n_blocks)
+
+print("Average number blocks removed: ", np.mean(blocks_removed))
+print("Max number blocks removed: ", np.amax(blocks_removed))
+pd.DataFrame(blocks_removed).to_csv('./Data/full_random.csv', header=None, index=None)
+
 
 # print("Now start to remove the  jenga.")
 # ctr_blocks = [49, 46, 43, 40, 37, 34, 31, 28, 25, 22, 19, 16, 13, 10, 7, 4, 1]

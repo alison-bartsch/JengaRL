@@ -1,10 +1,12 @@
 import gym
 import numpy as np
+import pandas as pd
 import pybullet as pb
 import matplotlib.pyplot as plt
 import time
 import pybullet_data
 import random
+from itertools import count
 
 # Discrete Case:
 class JengaEnv(gym.Env):
@@ -28,8 +30,8 @@ class JengaEnv(gym.Env):
 		# self.state=np.array(range(54))
 		
 		# print("State: ", self.state)
-		# self.physicsClient = pb.connect(pb.DIRECT)
-		self.physicsClient = pb.connect(pb.GUI)
+		self.physicsClient = pb.connect(pb.DIRECT)
+		# self.physicsClient = pb.connect(pb.GUI)
 
 		pb.setTimeStep(1/60, self.physicsClient) # it's vital for stablity
 
@@ -44,7 +46,21 @@ class JengaEnv(gym.Env):
 
 	def step(self, sampleID):
 		#delete selected block
-		pb.removeBody(self.jengaObject[sampleID]) 
+		reward = 0
+
+		if sampleID in self.blocks_buffer:
+			pb.removeBody(self.jengaObject[sampleID]) 
+			self.blocks_buffer.remove(sampleID)
+			self.num_blocks -= 1
+			
+			# standard reward
+			# reward = (3 * self.num_layer - 3 - self.num_blocks)**2
+
+			# reward encouraging not taking too many blocks from a single layer
+			reward = ((3 * self.num_layer - 3 - self.num_blocks)**2) * self._avgBlocksInRow()/3
+		else:
+			reward = -50
+		
 
 		# get the position of the sample
 		layer = int(sampleID / 3)
@@ -57,18 +73,15 @@ class JengaEnv(gym.Env):
 			self.state[pos,:,layer] = 0
 
 		# print("State Shape: ", self.state.shape)
-		self.blocks_buffer.remove(sampleID)
 
-		self.num_blocks -= 1
+
 
 		for _ in range(90): 
 			pb.stepSimulation()
 
-		# standard reward
-		# reward = (3 * self.num_layer - 3 - self.num_blocks)**2
+		
 
-		# reward encouraging not taking too many blocks from a single layer
-		reward = (3 * self.num_layer - 3 - self.num_blocks)**2 + self._avgBlocksInRow()
+		
 
 		# reward encouraging blocks removed from upper tower
 		# reward = (3 * self.num_layer - 3 - self.num_blocks)**2 + sampleID #increase reward for more blocks removed from tower
@@ -122,31 +135,63 @@ class JengaEnv(gym.Env):
 if __name__ == "__main__":
 	# test code - see what is going on
 
-	# create a stable tower
+	# # create a stable tower
 	# it's not a easy way!
 	env = JengaEnv()
 	done = False
 	for i in range(300):
+		# print("Stepping the simulation")
 		pb.stepSimulation()
 		time.sleep(1./240.)
 
-	# random remove one jengas
-	print("Now start to remove the  jenga.")
+	blocks_removed = []
+	# random remove one jenga
+	for j in range(400):
+		state = env.reset()
+		print("Run ", j)
+		n_blocks = 0
+		for t in count():
+			action = env.action_space.sample()
+			state,rw,done,info = env.step(action)
 
-	n_removed = 0
-	while not done:
-		action = np.random.choice(env.blocks_buffer)
-		print("Action: ", action)
-		state,rw,done,info = env.step(action)
-		print("Reward: ", rw)
-		n_removed+=1
+			if rw > 0:
+				n_blocks+=1
 
-	print("Removed ", n_removed)
+			if done:
+				break
 
-	# show what happened following
-	for i in range(300):
-		pb.stepSimulation()
-		time.sleep(1./240.)
+		blocks_removed.append(n_blocks)
+
+	print(blocks_removed)
+	print("Average number blocks removed: ", np.mean(blocks_removed))
+	print("Max number blocks removed: ", np.amax(blocks_removed))
+	pd.DataFrame(blocks_removed).to_csv('./Data/voxelized_random.csv', header=None, index=None)
+
+	# # create a stable tower
+	# # it's not a easy way!
+	# env = JengaEnv()
+	# done = False
+	# for i in range(300):
+	# 	pb.stepSimulation()
+	# 	time.sleep(1./240.)
+
+	# # random remove one jengas
+	# print("Now start to remove the  jenga.")
+
+	# n_removed = 0
+	# while not done:
+	# 	action = np.random.choice(env.blocks_buffer)
+	# 	print("Action: ", action)
+	# 	state,rw,done,info = env.step(action)
+	# 	print("Reward: ", rw)
+	# 	n_removed+=1
+
+	# print("Removed ", n_removed)
+
+	# # show what happened following
+	# for i in range(300):
+	# 	pb.stepSimulation()
+	# 	time.sleep(1./240.)
 	# close the pybullet
 	pb.disconnect()
 
