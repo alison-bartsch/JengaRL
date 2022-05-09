@@ -18,7 +18,7 @@ log_dir = "./StableBaselines/A2C/"
 env = JengaFullEnv()      # JengaFullEnv()    # JengaEnv()
 env = Monitor(env, log_dir)
 
-check_callback = CheckpointCallback(save_freq=500, save_path=log_dir, name_prefix='a2c_vox_specialR')
+check_callback = CheckpointCallback(save_freq=500, save_path=log_dir, name_prefix='a2c_full_specialR')
 model = A2C("MlpPolicy", env, verbose=1)
 
 
